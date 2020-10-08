@@ -125,17 +125,7 @@ static rt_err_t _bme680_init(struct rt_sensor_intf *intf)
     }
 
     rslt = bme680_init(&_bme680_dev);
-    if (rslt == BME680_E_NULL_PTR)
-    {
-        LOG_E("the device structure pointer is null");
-        return -RT_ERROR;
-    }
-    else if (rslt == BME680_E_DEV_NOT_FOUND)
-    {
-        LOG_E("can't found device");
-        return -RT_ERROR;
-    }
-    else if (rslt != BME680_OK)
+    if (rslt != BME680_OK)
     {
         LOG_E("bme680 init failed");
         return -RT_ERROR;
