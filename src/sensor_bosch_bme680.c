@@ -85,7 +85,7 @@ static rt_err_t _bme680_init(struct rt_sensor_intf *intf)
     /* amb_temp can be set to 25 prior to configuring the gas sensor 
      * or by performing a few temperature readings without operating the gas sensor.
      */
-    gas_sensor.amb_temp = 25;
+    _bme680_dev.amb_temp = 25;
 
     i2c_bus_dev = (struct rt_i2c_bus_device *)rt_device_find(intf->dev_name);
     if (i2c_bus_dev == RT_NULL)
