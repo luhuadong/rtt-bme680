@@ -18,6 +18,22 @@
 #endif
 #include <rtdbg.h>
 
+/* range */
+#define SENSOR_BARO_RANGE_MIN          ( 300*100)
+#define SENSOR_BARO_RANGE_MAX          (1100*100)
+#define SENSOR_TEMP_RANGE_MIN          ( -40*100)
+#define SENSOR_TEMP_RANGE_MAX          (  85*100)
+#define SENSOR_HUMI_RANGE_MIN          (   0*100)
+#define SENSOR_HUMI_RANGE_MAX          ( 100*100)
+#define SENSOR_IAQ_RANGE_MIN           (0)
+#define SENSOR_IAQ_RANGE_MAX           (500)
+
+/* minial period (ms) */
+#define SENSOR_PERIOD_MIN              (1000)
+
+/* fifo max length */
+#define SENSOR_FIFO_MAX                (1)
+
 
 static struct bme680_dev _bme680_dev;
 static struct rt_i2c_bus_device *i2c_bus_dev;
@@ -27,8 +43,11 @@ static void rt_delay_ms(uint32_t period)
     rt_thread_mdelay(period);
 }
 
+//dev->write(dev->dev_id, tmp_buff[0], &tmp_buff[1], (2 * len) - 1);
+
 static int8_t rt_i2c_write_reg(uint8_t addr, uint8_t reg, uint8_t *data, uint16_t len)
 {
+#if 1
     rt_uint8_t tmp = reg;
     struct rt_i2c_msg msgs[2];
 
@@ -41,12 +60,23 @@ static int8_t rt_i2c_write_reg(uint8_t addr, uint8_t reg, uint8_t *data, uint16_
     msgs[1].flags = RT_I2C_WR | RT_I2C_NO_START;        /* Read flag */
     msgs[1].buf   = data;             /* Read data pointer */
     msgs[1].len   = len;              /* Number of bytes read */
+/*
+    rt_size_t ret = rt_i2c_transfer(i2c_bus_dev, msgs, 2);
+    if (ret != 2)
+    {
+        LOG_E("rt_i2c_transfer() return %d", ret);
+        return -RT_ERROR;
+    }
+    */
 
     if (rt_i2c_transfer(i2c_bus_dev, msgs, 2) != 2)
     {
         return -RT_ERROR;
     }
+#else
+    rt_i2c_master_send(i2c_bus_dev, addr, RT_I2C_WR, data, len);
 
+#endif
     return RT_EOK;
 }
 
@@ -95,7 +125,17 @@ static rt_err_t _bme680_init(struct rt_sensor_intf *intf)
     }
 
     rslt = bme680_init(&_bme680_dev);
-    if (rslt != BME680_OK)
+    if (rslt == BME680_E_NULL_PTR)
+    {
+        LOG_E("the device structure pointer is null");
+        return -RT_ERROR;
+    }
+    else if (rslt == BME680_E_DEV_NOT_FOUND)
+    {
+        LOG_E("can't found device");
+        return -RT_ERROR;
+    }
+    else if (rslt != BME680_OK)
     {
         LOG_E("bme680 init failed");
         return -RT_ERROR;
@@ -165,6 +205,9 @@ static rt_size_t _bme680_polling_get_data(struct rt_sensor_device *sensor, void 
         LOG_E("Can not read from %s", sensor->info.model);
         return 0;
     }
+
+    LOG_D("temp: %d, baro: %d, humi: %d, gas: %d", data.temperature, data.pressure, data.humidity, data.gas_resistance);
+
     rt_uint32_t timestamp = rt_sensor_get_ts();
 
     if (sensor->info.type == RT_SENSOR_CLASS_BARO)
@@ -287,7 +330,9 @@ static struct rt_sensor_ops sensor_ops =
 int rt_hw_bme680_init(const char *name, struct rt_sensor_config *cfg)
 {
     rt_int8_t result;
-    rt_sensor_t sensor_baro = RT_NULL, sensor_temp = RT_NULL, sensor_humi = RT_NULL;
+    rt_sensor_t sensor_baro = RT_NULL;
+    rt_sensor_t sensor_temp = RT_NULL;
+    rt_sensor_t sensor_humi = RT_NULL;
     struct rt_sensor_module *module = RT_NULL;
 
     if (_bme680_init(&cfg->intf) != RT_EOK)
@@ -298,12 +343,8 @@ int rt_hw_bme680_init(const char *name, struct rt_sensor_config *cfg)
     module = rt_calloc(1, sizeof(struct rt_sensor_module));
     if (module == RT_NULL)
     {
-        return -1;
+        return -RT_ENOMEM;
     }
-    module->sen[0] = sensor_baro;
-    module->sen[1] = sensor_temp;
-    module->sen[2] = sensor_humi;
-    module->sen_num = 3;
 
     /*  barometric pressure sensor register */
     {
@@ -316,9 +357,11 @@ int rt_hw_bme680_init(const char *name, struct rt_sensor_config *cfg)
         sensor_baro->info.model      = "bme680";
         sensor_baro->info.unit       = RT_SENSOR_UNIT_PA;
         sensor_baro->info.intf_type  = RT_SENSOR_INTF_I2C;
-        sensor_baro->info.range_max  = 110000;
-        sensor_baro->info.range_min  = 30000;
-        sensor_baro->info.period_min = 100;
+        sensor_baro->info.range_max  = SENSOR_BARO_RANGE_MAX;
+        sensor_baro->info.range_min  = SENSOR_BARO_RANGE_MIN;
+        sensor_baro->info.period_min = SENSOR_PERIOD_MIN;
+        sensor_baro->info.fifo_max   = SENSOR_FIFO_MAX;
+        sensor_baro->data_len        = 0;
 
         rt_memcpy(&sensor_baro->config, cfg, sizeof(struct rt_sensor_config));
         sensor_baro->ops = &sensor_ops;
@@ -342,9 +385,11 @@ int rt_hw_bme680_init(const char *name, struct rt_sensor_config *cfg)
         sensor_temp->info.model      = "bme680";
         sensor_temp->info.unit       = RT_SENSOR_UNIT_DCELSIUS;
         sensor_temp->info.intf_type  = RT_SENSOR_INTF_I2C;
-        sensor_baro->info.range_max  = 850;
-        sensor_baro->info.range_min  = -400;
-        sensor_temp->info.period_min = 100;
+        sensor_temp->info.range_max  = SENSOR_TEMP_RANGE_MAX;
+        sensor_temp->info.range_min  = SENSOR_TEMP_RANGE_MIN;
+        sensor_temp->info.period_min = SENSOR_PERIOD_MIN;
+        sensor_temp->info.fifo_max   = SENSOR_FIFO_MAX;
+        sensor_temp->data_len        = 0;
 
         rt_memcpy(&sensor_temp->config, cfg, sizeof(struct rt_sensor_config));
         sensor_temp->ops = &sensor_ops;
@@ -368,9 +413,11 @@ int rt_hw_bme680_init(const char *name, struct rt_sensor_config *cfg)
         sensor_humi->info.model      = "bme680";
         sensor_humi->info.unit       = RT_SENSOR_UNIT_PERMILLAGE;
         sensor_humi->info.intf_type  = RT_SENSOR_INTF_I2C;
-        sensor_baro->info.range_max  = 1000;
-        sensor_baro->info.range_min  = 0;
-        sensor_humi->info.period_min = 100;
+        sensor_humi->info.range_max  = SENSOR_HUMI_RANGE_MAX;
+        sensor_humi->info.range_min  = SENSOR_HUMI_RANGE_MIN;
+        sensor_humi->info.period_min = SENSOR_PERIOD_MIN;
+        sensor_humi->info.fifo_max   = SENSOR_FIFO_MAX;
+        sensor_humi->data_len        = 0;
 
         rt_memcpy(&sensor_humi->config, cfg, sizeof(struct rt_sensor_config));
         sensor_humi->ops = &sensor_ops;
@@ -383,6 +430,11 @@ int rt_hw_bme680_init(const char *name, struct rt_sensor_config *cfg)
             goto __exit;
         }
     }
+
+    module->sen[0] = sensor_baro;
+    module->sen[1] = sensor_temp;
+    module->sen[2] = sensor_humi;
+    module->sen_num = 3;
 
     LOG_I("sensor init success");
     return RT_EOK;
