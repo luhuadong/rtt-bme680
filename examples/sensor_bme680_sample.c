@@ -13,11 +13,8 @@
 #include <board.h>
 #include "sensor_bme680.h"
 
-#ifdef PKG_USING_BME680_SAMPLE_I2C_BUS_NAME
 #define BME680_I2C_BUS_NAME       PKG_USING_BME680_SAMPLE_I2C_BUS_NAME
-#else
-#define BME680_I2C_BUS_NAME       "i2c1"
-#endif
+#define BME680_I2C_ADDRESS        PKG_USING_BME680_SAMPLE_I2C_ADDRESS
 
 static int rt_hw_bme680_port(void)
 {
@@ -25,6 +22,7 @@ static int rt_hw_bme680_port(void)
     
     cfg.intf.type = RT_SENSOR_INTF_I2C;
     cfg.intf.dev_name = BME680_I2C_BUS_NAME;
+    cfg.intf.user_data = (void *)BME680_I2C_ADDRESS;
     rt_hw_bme680_init("be6", &cfg);
     
     return RT_EOK;

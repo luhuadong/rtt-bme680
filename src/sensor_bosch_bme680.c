@@ -77,11 +77,15 @@ static rt_err_t _bme680_init(struct rt_sensor_intf *intf)
 {
     int8_t rslt = BME680_OK;
 
-    _bme680_dev.dev_id = (rt_uint32_t)(intf->user_data) & 0xff;
-    _bme680_dev.intf = BME680_I2C_INTF;
-    _bme680_dev.read = rt_i2c_read_reg;
-    _bme680_dev.write = rt_i2c_write_reg;
+    _bme680_dev.dev_id   = (rt_uint32_t)(intf->user_data) & 0xff;
+    _bme680_dev.intf     = BME680_I2C_INTF;
+    _bme680_dev.read     = rt_i2c_read_reg;
+    _bme680_dev.write    = rt_i2c_write_reg;
     _bme680_dev.delay_ms = rt_delay_ms;
+    /* amb_temp can be set to 25 prior to configuring the gas sensor 
+     * or by performing a few temperature readings without operating the gas sensor.
+     */
+    gas_sensor.amb_temp = 25;
 
     i2c_bus_dev = (struct rt_i2c_bus_device *)rt_device_find(intf->dev_name);
     if (i2c_bus_dev == RT_NULL)
