@@ -9,7 +9,7 @@ if GetDepend('PKG_USING_BME680'):
     src += Glob('BME680_driver/bme680.c')
     src += Glob('src/sensor_bosch_bme680.c')
 
-if GetDepend('PKG_USING_BME680_SAMPLE'):
+if GetDepend('PKG_USING_BME680_SAMPLE_I2C') or GetDepend('PKG_USING_BME680_SAMPLE_SPI'):
     src += Glob('examples/sensor_bme680_sample.c')
 
 # add bme680 include path.

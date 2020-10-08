@@ -16,6 +16,9 @@
 #define BME680_I2C_BUS_NAME       PKG_USING_BME680_SAMPLE_I2C_BUS_NAME
 #define BME680_I2C_ADDRESS        PKG_USING_BME680_SAMPLE_I2C_ADDRESS
 
+
+#ifdef PKG_USING_BME680_SAMPLE_I2C
+
 static int rt_hw_bme680_port(void)
 {
     struct rt_sensor_config cfg;
@@ -28,3 +31,5 @@ static int rt_hw_bme680_port(void)
     return RT_EOK;
 }
 INIT_COMPONENT_EXPORT(rt_hw_bme680_port);
+
+#endif
