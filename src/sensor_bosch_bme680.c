@@ -60,14 +60,6 @@ static int8_t rt_i2c_write_reg(uint8_t addr, uint8_t reg, uint8_t *data, uint16_
     msgs[1].flags = RT_I2C_WR | RT_I2C_NO_START;        /* Read flag */
     msgs[1].buf   = data;             /* Read data pointer */
     msgs[1].len   = len;              /* Number of bytes read */
-/*
-    rt_size_t ret = rt_i2c_transfer(i2c_bus_dev, msgs, 2);
-    if (ret != 2)
-    {
-        LOG_E("rt_i2c_transfer() return %d", ret);
-        return -RT_ERROR;
-    }
-    */
 
     if (rt_i2c_transfer(i2c_bus_dev, msgs, 2) != 2)
     {
